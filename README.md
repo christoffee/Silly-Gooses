@@ -3,7 +3,7 @@ Silly-Gooses
 My js13kgames 2014 entry and christoffee game.
 
 ##About
-This game was inspire by the water element of the game theme, but then I sort of lost my way trying to make the gooses sillier... I have a problem. 
+This game was inspire by the water element of the game theme of the js13kgames competition, but then I sort of lost my way trying to make the gooses sillier... I have a problem. 
 
 ###Background Story
 The mother goose's baby goose's have got loose and away from the safey of the pond. The baby gooses have failed to realise that the hungry fox is on the hunt for his lunch... silly gooses. Can you save all the mother goose's baby gooses without getting eaten by the fox? 
