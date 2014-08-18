@@ -1,4 +1,5 @@
-#Silly-Gooses
+Silly-Gooses
+==================
 My js13kgames 2014 entry and christoffee game.
 
 ##About
@@ -15,6 +16,10 @@ You're silly!
 
 ##How To Play
 Use the LEFT and RIGHT arrow keys to navigate mother goose around the pond and SPACEBAR to launch a resue. 
+
 Powers:
-P = To pause time and space (Pause menu)
-L = Laser beam vision for more accurate rescues.
+<ul>
+<li>P = To pause time and space (Pause menu).</li>
+<li>L = Laser beam vision for more accurate rescues.</li>
+<li>S = Laser beam vision for more accurate rescues.</li>
+</ul>
