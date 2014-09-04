@@ -8,53 +8,52 @@ window.requestAnimFrame = (function() {
           function(callback) { window.setTimeout(callback, 1000 / 60); };
 }());
 
-var canvas, context, toggle, canvasWidth, canvasHeight, canvasXCenter, canvasYCenter,
+var canvas, context, canvasWidth, canvasHeight, canvasXCenter, canvasYCenter,
     togglePul = true,
     spaceDown = false,
     gameover = false,
     menu = true,
     pulsate = 0,
+    puddlePulsate = 0,
     gooseLives = 3,
     gooseMove = 0,
     goosePosition = [],
     SillyGooseMaxPosition = [450, 450, 450, 350, 350, 270, 270, 270, 270, 270, 270, 270, 450, 450, 450, 450, 450, 450, 270, 270, 210, 210, 210, 210, 210, 210, 210, 350, 450, 450],
-    duckOut = 70,
+    duckOut = 40,
     rescues = 0,
     gooseRescues = 0,
     gooseRescuesMove = 0,
-    successRate = 0,
-    laserBeam = false,
+    waterSaved = 0,
     foxMove = 0,
     foxPosition = [],
     breadCrumbsArr = [],
     lastPosArr = [100, 100],
     grassArr = [],
-    gooseArr = [],
+    elementArr = [],
     segements = [],
-    motherGHasBaby = false,
+    puddleCollected = false,
+    left = false,
+    right = false,
+    notGoose = false,
     takeaway = -30,
-    gooseDied = false,
     menuAlpha = 1
-    score= 0;
+    score= 0,
+    dirtSaved = 0,
+    level = 1,
+    waterlevel = 100;
 
 function doKeyDown(e) {
     switch (e.keyCode) {
     //Left Arrow
     case 37:
-        if (!spaceDown && duckOut <= 80) {
-            gooseMove -= 1;
-            if (gooseMove === -1) {
-                gooseMove = 29;
-            }
+        if (!gameover) {
+          left = true;
         }
         break;
     //right arrow
     case 39:
-        if (!spaceDown && duckOut <= 80) {
-            gooseMove += 1;
-            if (gooseMove === 30) {
-                gooseMove = 0;
-            }
+        if (!gameover) {
+            right = true;
         }
         break;
     //space bar
@@ -66,11 +65,12 @@ function doKeyDown(e) {
         break;
     // P
     case 80:
-        menu = !menu;
-        break;
-    // L
-    case 76:
-        laserBeam = !laserBeam;
+        if(gameover){
+          gameReset();
+        }else{
+          menu = !menu;
+        }
+        
         break;
     default:
         break;
@@ -79,7 +79,14 @@ function doKeyDown(e) {
 
 function doKeyUp(e) {
     switch (e.keyCode) {
-        //space bar
+    case 37:
+        left = false;
+        break;
+    
+    case 39:
+        right = false;
+        break;
+    
     case 32:
         spaceDown = false;
         break;
@@ -87,7 +94,7 @@ function doKeyUp(e) {
 }
 
 function createBackgound() {
-    var i, grass, grassColour, grassSize, x, y;
+    var i, grass, grassSize, x, y,toggle;
     for (i = 0; i <= 2000; i += 1) {
         grass = [];
         x = Math.floor(Math.random() * (canvasWidth - 1));
@@ -95,12 +102,12 @@ function createBackgound() {
 
         toggle = !toggle;
         grassSize = toggle ? 3 : 5;
-        grassColour = toggle ? 'rgb(0,104,55)' : 'rgb(100,204,55)';
 
-        grass.push(x, y, grassSize, grassColour);
+        grass.push(x, y, grassSize);
         grassArr.push(grass);
     }
 }
+
 
 function getRandomInt(min, max) {
         do {
@@ -110,9 +117,9 @@ function getRandomInt(min, max) {
               number += 1;
             }
 
-            if (gooseArr[0]) {
-              for (var i = 0; i < gooseArr.length; i++) {
-                  if(number == gooseArr[i][1]){
+            if (elementArr[0]) {
+              for (var i = 0; i < elementArr.length; i++) {
+                  if(number == elementArr[i][1]){
                       exists = true;
                       break;
                   }
@@ -125,21 +132,21 @@ function getRandomInt(min, max) {
 function getRandomGooseInt(min, max) {
 
     var range = max - min + 1;
-      range = range / 10,
+      range = range / 20,
       number = Math.floor(Math.random() * (range));
-    
-    return (number * 10) + min;
+    return (number * 20) + min;
 }
 
-function createSillyGooses() {
-    var i, gooses, randomSeg, x;
+function createPuddles() {
+    var i, puddle, randomSeg, x,elementLevel;
     for (i = 0; i < 6; i += 1) {
-        gooses = [];
+        puddle = [];
         randomSeg = getRandomInt(0,29);
         x = getRandomGooseInt(200,SillyGooseMaxPosition[randomSeg]);
+        elementLevel = getRandomInt(5, 25);
 
-        gooses.push(x,randomSeg);
-        gooseArr.push(gooses);
+        puddle.push(x,randomSeg,elementLevel);
+        elementArr.push(puddle);
     }
 }
 
@@ -175,7 +182,7 @@ function init() {
     canvasYCenter = canvasHeight / 2;
 
     createBackgound();
-    createSillyGooses();
+    createPuddles();
     getSegements();
 }
 
@@ -186,6 +193,7 @@ function drawSegment () {
         y = 0,
         w = 200,
         h = 1;
+    
 
     for (var arr in segements) {
         for (var i = 0; i < segements[arr].length; i++) {
@@ -204,137 +212,172 @@ function drawSegment () {
     }
 }
 
-function drawSillyGooses () {
-    var y = -5,
+function drawElement () {
+    var y = 0,
         w = 20,
-        h = 15;
+        h = 15,
+        randomSeg;
 
-    for (var i = 0; i < gooseArr.length; i++) {
-        var r = segements[ gooseArr[i][1] ][0],
-            x = gooseArr[i][0];
+    for (var i = 0; i < elementArr.length; i++) {
 
-        context.save();
-        context.translate(canvasXCenter, canvasYCenter);
-        context.rotate(r);
-        context.fillStyle = "rgba(252,238,33,0.8)";
-        context.beginPath();
-        context.fillRect(x,y, w, h);
-        context.fillRect(x+3,y-5, w-6, h+10);
-        context.fillRect(x+6,y-12, w-12, h);
-        context.fillStyle = "rgb(252,128,33)";
-        context.fillRect(x+8,y-16, w-16, h-6);
-        context.closePath();
-        context.fill();
-        context.restore();
+      var r = segements[ elementArr[i][1] ][0],
+            x = elementArr[i][0],
+            elementLevel = elementArr[i][2];
+
+
+        if(elementLevel > 3){
+          elementLevel -= 0.1;
+          elementArr[i][2] = elementLevel;
+        }else{
+          randomSeg = getRandomInt(0,29);
+          x = getRandomGooseInt(200,SillyGooseMaxPosition[randomSeg]);
+          elementArr[i][0] = x;
+          elementArr[i][1] = randomSeg;
+          elementArr[i][2] = getRandomInt(5, 25);
+
+          r = segements[ elementArr[i][1] ][0];
+          x = elementArr[i][0];
+          elementLevel = elementArr[i][2];
+        }
+
+      if(i == elementArr.length-1){
+        if(!notGoose){
+          dirt(x, y, r, elementLevel, puddlePulsate);
+        }else{
+          puddle(x, y, r, elementLevel, puddlePulsate);
+        }
+      }else{
+        if(notGoose){
+          dirt(x, y, r, elementLevel, puddlePulsate);
+        }else{
+          puddle(x, y, r, elementLevel, puddlePulsate);
+        }
+      }
     }
+}
+
+function puddle (x, y, r, elementLevel, puddlePulsate) {
+  context.save();
+  context.translate(canvasXCenter, canvasYCenter);
+  context.rotate(r);
+  context.beginPath();
+  context.arc(x, y, (elementLevel), 0, 2 * Math.PI, false);
+  context.fillStyle = 'rgba(0,126,128,0.5)';
+  context.fill();
+  context.beginPath();
+  context.arc(x, y, (elementLevel + 3) + puddlePulsate, 0, 2 * Math.PI, false);
+  context.fillStyle = 'rgba(0,126,128,0.5)';
+  context.fill();
+  context.restore();
+}
+
+function dirt (x, y, r, elementLevel, puddlePulsate) {
+  context.save();
+  context.translate(canvasXCenter, canvasYCenter);
+  context.rotate(r);
+  context.fillStyle = 'rgba(110,85,56,0.7)';
+  context.beginPath();
+  context.fillRect(x-5, y-10, elementLevel, elementLevel);
+  context.fill();
+  context.beginPath();
+  context.fillRect(x, y, elementLevel+5, elementLevel+5);
+  context.fill();
+  context.beginPath();
+  context.fillRect(x-5, y, elementLevel+7, elementLevel+7);
+  context.fill();
+  context.beginPath();
+  context.fillRect(x-3, y+10, elementLevel-5, elementLevel-5);
+  context.fill();
+  context.beginPath();
+  context.fillRect(x-15, y-5, elementLevel+5, elementLevel+5);
+  context.fill();
+  context.restore();
 }
 
 
 
-
 function drawBackground() {
-   context.fillStyle = "rgb(117,153,90)";
+  context.save();
+  context.fillStyle = "rgb(100,155,83)";
+    
    context.rect(0, 0, canvasWidth, canvasHeight);
    context.fill();
+
+      context.fillStyle = "rgb(50,205,0)";
+    
    for (var arr in grassArr) {
       for (var i = 0; i < grassArr[arr].length; i++) {
          // Draw an individual star.
-         context.fillStyle = grassArr[arr][3];
          context.beginPath();
          context.rect(grassArr[arr][0], grassArr[arr][1], grassArr[arr][2]/8, grassArr[arr][2]);
          context.closePath();
          context.fill();
       }
    }
+   context.restore();
 }
 
-
-function drawFox () {
-
-//TODO:hit detection 
-  var cx = (Math.sin( foxMove )) + canvasXCenter,
-    cy = (Math.cos( foxMove ))+ canvasYCenter,
-    x = 150,
-    y = 0,
-    r = -(foxMove),
-    w = 20,
-      h = 30;
-
-  context.save();
-
-  context.fillStyle = "rgba(117,0,0,0.8)";
-  context.beginPath();
-  context.translate(cx,cy);
-  context.rotate(r);
-  context.fillRect(x, y, w, h);
-  context.fillRect(x-1.5, y+20+(pulsate/2), w+3, h-20);
-  context.fillRect(x-1.5, y-5-(pulsate/2), w+3, h-20);
-  context.fillRect(x+5, y-10, w-10, h-25);
-  context.fillRect(x+6, y-14, w-12, h-25);
-  context.fillRect(x+7, y+10-pulsate, w-14, h);
-  context.fillStyle = "rgb(250,250,250)";
-  context.fillRect(x+6, y+40-pulsate, w-12, h-20);
-  context.fillStyle = "rgb(2,2,2)";
-  context.fillRect(x+7.5, y-18, w-15, h-26);
-
-  context.closePath();
-  context.restore();
-
-  
-  if(!menu){
-    foxMove+=(score+1)/70;
-    gooseRescuesMove+=0.01;
-  }
-  
-}
-
-function drawDuck () {
-  if(!spaceDown && duckOut <= 80){
-      if(motherGHasBaby){
+function drawSilly () {
+  if(!spaceDown && duckOut <= 40){
+      if(puddleCollected){
         rescues++;
         score++;
-        motherGHasBaby= false;
+        puddleCollected= false;
       }
 
     }
-  if(gooseDied && duckOut <= 70){
-      gooseDied = false;
+    if(right && !spaceDown && duckOut <= 80){
+      gooseMove += 1;
+      if (gooseMove === 30) {
+          gooseMove = 0;
+      }
     }
-
-  if(!spaceDown && duckOut > 70){
-    duckOut-= 10;
+    if(left && !spaceDown && duckOut <= 80 ){
+      gooseMove -= 1;
+      if (gooseMove === -1) {
+          gooseMove = 29;
+      }
+    }
+  if(!spaceDown && duckOut > 40){
+    duckOut-= 20;
   }
 
-  if(motherGHasBaby || gooseDied){
+  if(puddleCollected){
     spaceDown=false;
   }
 
   if(spaceDown && duckOut < 500){
     
-    duckOut+= 10;
+    duckOut+= 20;
   }
-
-  var w = 20,
-    h = 40,
-    cx = canvasXCenter,
+  var cx = canvasXCenter,
     cy = canvasYCenter,
     x = duckOut,
-    y = -19,
     r = (gooseMove / 15 * Math.PI);
 
     goosePosition = [gooseMove,x];
-  context.save();
 
-  if(gooseDied){
-    context.fillStyle = "rgba(253,30,30,0.8)";
-  }else{
-    context.fillStyle = "rgba(253,253,253,0.8)";
-  }
+    if(notGoose){
+      var w = 50,
+        h = 30,
+        y = -13;
+      moose(x, y, w, h, cx, cy, pulsate, r);
+    }else{
+      var w = 20,
+        h = 40,
+        y = -19;
+      goose(x, y, w, h, cx, cy, pulsate, r);
+    }
+  
+  checkGooseHit();
+}
+
+function goose (x, y, w, h, cx, cy, pulsate, r) {
+  context.save();
+  context.fillStyle = "rgba(253,253,253,0.8)";
   context.translate(cx, cy);
   context.rotate(r); 
   context.fillRect(x, y, w, h);
-
-  
   //butt
   //context.fillStyle = "rgb(240,240,240)";
   context.fillRect(x-5, y+5, w+10, h-10);
@@ -348,53 +391,70 @@ function drawDuck () {
     context.fillRect(x, y-pulsate*1, w-3, h);
     context.fillRect(x-pulsate*2, y+10, w-5, h-20);
   }
-
-  if(laserBeam){
-    context.fillStyle = "rgb(255,0,0)";
-    context.fillRect(x+40, y+16, w+430, h-39);
-    context.fillRect(x+40, y+22, w+430, h-39);
-  }
   //beak
   context.fillStyle = "rgb(253,203,0)";
   context.fillRect(x+45, y+17, w-10, h-34);
-
   context.restore();
-  checkGooseHit();
+}
+
+function moose (x, y, w, h, cx, cy, pulsate, r) {
+  context.save();
+  context.fillStyle = "rgba(72,48,48,0.9)";
+  context.translate(cx, cy);
+  context.rotate(r); 
+  context.fillRect(x-10, y, w, h);
+  //butt
+  context.fillRect(x+40, y+10, w-45, h-20);
+  //head
+  context.fillRect(x+45, y+8, w-35, h-16);
+  //antelers
+  context.fillStyle = "rgba(230,248,48,0.9)";
+  //left
+  context.fillRect(x+45, y+18, w-47, h-10);
+  context.fillRect(x+45, y+30, w-36, h-27);
+  context.fillRect(x+45, y+22, w-40, h-27);
+  //right
+  context.fillRect(x+45, y-8, w-47, h-10);
+  context.fillRect(x+45, y-4, w-36, h-27);
+  context.fillRect(x+45, y+4, w-40, h-27);
+  context.restore();
 }
 
 
 function drawPond () {
   context.save();
   context.beginPath();
-  context.arc(canvasXCenter, canvasYCenter, 113, 0, 2 * Math.PI, false);
+  context.arc(canvasXCenter, canvasYCenter, (1.13*waterlevel), 0, 2 * Math.PI, false);
   context.fillStyle = 'rgba(73,56,49,0.3)';
   context.fill();
 
   context.beginPath();
-  context.arc(canvasXCenter, canvasYCenter, 110, 0, 2 * Math.PI, false);
+  context.arc(canvasXCenter, canvasYCenter, (1.1*waterlevel), 0, 2 * Math.PI, false);
   context.fillStyle = 'rgba(73,56,49,0.5)';
   context.fill();
 
   context.beginPath();
-  context.arc(canvasXCenter, canvasYCenter, 80 + pulsate, 0, 2 * Math.PI, false);
+  context.arc(canvasXCenter, canvasYCenter, (0.8*waterlevel) + pulsate, 0, 2 * Math.PI, false);
   context.fillStyle = 'rgba(0,126,128,0.5)';
   context.fill();
   
   context.beginPath();
-  context.arc(canvasXCenter, canvasYCenter, 90 + pulsate, 0, 2 * Math.PI, false);
+  context.arc(canvasXCenter, canvasYCenter, (0.9*waterlevel) + pulsate, 0, 2 * Math.PI, false);
   context.fillStyle = 'rgba(0,126,128,0.5)';
   context.fill();
 
   context.beginPath();
-  context.arc(canvasXCenter, canvasYCenter, 104 - pulsate, 0, 2 * Math.PI, false);
+  context.arc(canvasXCenter, canvasYCenter, (1.04*waterlevel) - pulsate, 0, 2 * Math.PI, false);
   context.fillStyle = 'rgba(0,126,128,0.5)';
   context.fill();
 context.restore();
   
   if (togglePul) {
-    pulsate += 0.2
+    pulsate += 0.2;
+    puddlePulsate += 0.02;
   }else{
     pulsate -= 0.2;
+    puddlePulsate -= 0.02;
   }
   
 
@@ -433,7 +493,7 @@ function showMenu () {
 }
 
 function showHowToPlay () {
-  showMenu(false);
+  showMenu();
 
   context.save();
 
@@ -443,14 +503,16 @@ function showHowToPlay () {
   context.fillText("How to play",canvasXCenter,150);
   context.fillStyle = "rgb(239,218,171)";
   context.font="20px Calibri";
-  context.fillText("The baby gooses have left the safety of the pond to go and explore",canvasXCenter,180);
-  context.fillText("and have failed to realise the hungry fox looking for lunch!",canvasXCenter,210);
-  context.fillText("...Silly gooses!",canvasXCenter,240);
-  context.fillText("Help mother goose get her baby gooses back to the safety of the pond.",canvasXCenter,270);
-  context.fillText("Use the left and right arrow keys to navigate mother goose.",canvasXCenter,330);
-  context.fillText("Then HOLD the SPACEBAR to launch a rescue and P for pause.",canvasXCenter,360);
+  context.fillText("Silly Moose and Goose dont know they're causing each other trouble.",canvasXCenter,180);
+  context.fillText("Silly Moose want to get rid of the pond so he can eat more grass!",canvasXCenter,210);
+  context.fillText("But Silly Goose want a bigger pond!",canvasXCenter,240);
+  context.fillText("When you are Silly Goose, collect water for points.",canvasXCenter,300);
+  context.fillText("When you are Silly Moose, collect earth for points.",canvasXCenter,330);
+  context.fillText("Change to goose/moose by collecting the other element.",canvasXCenter,360);
+  context.fillText("Use left and right arrows to move.",canvasXCenter,420);
+  context.fillText("HOLD spacebar until you hit the element to collect it.",canvasXCenter,450);
   context.fillStyle = "rgb(239,70,70)";
-  context.fillText("Press P to start!",canvasXCenter,420);
+  context.fillText("Press 'P' to start!",canvasXCenter,480);
 
   context.restore();
 }
@@ -466,11 +528,22 @@ function gameOver () {
   context.fillText("Game Over",canvasXCenter,150);
   context.fillStyle = "rgb(239,218,171)";
   context.font="20px Calibri";
-  if(score === 0){
-    context.fillText("Oh No! All the baby gooses are now the foxes lunch!",canvasXCenter,210);
+
+  context.fillText("Well done you have collected " + waterSaved + "L of water",canvasXCenter,210);
+  context.fillText("and collected " + dirtSaved + "KG of earth... giving you a score of",canvasXCenter,240);
+
+  context.fillStyle = "rgb(239,0,0)";
+  context.font="30px Calibri";
+  context.fillText(waterSaved + dirtSaved,canvasXCenter,270);
+  
+  context.fillStyle = "rgb(239,218,171)";
+  context.font="20px Calibri";
+  if(waterlevel < 70){  
+  context.fillText("... but sadly a goose lost its home :(",canvasXCenter,300);
   }else{
-    context.fillText("Well done you have saved " + score + " silly gooses.",canvasXCenter,210);
+  context.fillText("... but sadly a moose lost its home :(",canvasXCenter,300);
   }
+  context.fillText("Press 'P' to play again.",canvasXCenter,450);
 
   context.restore();
 }
@@ -505,34 +578,42 @@ function rescuedGeese () {
 }
 
 function checkGooseHit () {
+  var randomSeg,x;
   if(goosePosition[0]){
   //check to see if has baby geese
-    for (var i = 0; i < gooseArr.length; i++) {
-      if(goosePosition[0] == gooseArr[i][1]){
-        if (goosePosition[1] == gooseArr[i][0]) {
-          gooseArr.splice(i,1);
-          motherGHasBaby = true;
+    for (var i = 0; i < elementArr.length; i++) {
+      if(goosePosition[0] == elementArr[i][1]){
+        if (goosePosition[1] == elementArr[i][0]) {
+          if(i == 5){
+            notGoose = !notGoose;
+          }
+          increaseWaterlevel(elementArr[i][2]/10);
+          randomSeg = getRandomInt(0,29);
+          x = getRandomGooseInt(200,SillyGooseMaxPosition[randomSeg]);
+          elementArr[i][0] = x;
+          elementArr[i][1] = randomSeg;
+          elementArr[i][2] = getRandomInt(5, 25);
+          puddleCollected = true;
         }
         break;
       }
     }
-  //check if fox has lunch
-  var csd = 29 -  ( Math.floor((foxMove / Math.PI)* 15) % 30 );
-  //console.log('duck',goosePosition[1]);
-    if(goosePosition[0] <= csd + 2 &&  goosePosition[0] >= csd - 1){
-        if(goosePosition[1] >= 125 && goosePosition[1] <= 175 && !gooseDied){
-          gooseDied = true;
-          gooseLives--;
-        }
-          
-    }
   }
-  
+}
+
+function increaseWaterlevel(elementLevel){
+  if(notGoose){
+    waterlevel -= elementLevel;
+    dirtSaved += elementLevel;
+  }else{
+    waterlevel += elementLevel;
+    waterSaved += elementLevel;
+  }
 }
 
 function gameText () {
-  successRate = Math.ceil((rescues/gooseRescues) *100) || 0;
-
+  waterSaved = Math.floor(waterSaved);
+  dirtSaved = Math.floor(dirtSaved);
   context.save();
   
   context.beginPath();
@@ -541,13 +622,21 @@ function gameText () {
   context.fillRect(0, 70, 10, 520);
   context.fillRect(990, 70, 10, 520);
   context.fillRect(0, 590, 1000, 10);
-
-  context.fillStyle = "rgba(73,56,49,0.5)";
+  if(waterlevel < 70 || waterlevel > 130 && !gameover){  
+    context.fillStyle = "rgba(203,0,0,0.8)";
+  }else{
+    context.fillStyle = "rgba(73,56,49,0.5)";
+  }
   context.fillRect(10, 70, 980, 4);
   context.fillRect(10, 74, 4, 516);
   context.fillRect(986, 74, 4, 516);
   context.fillRect(14, 586, 972, 4);
+  context.fillRect(14, 550, 846, 4);
   context.fillRect(860, 550, 126, 36);
+
+  context.fillStyle = "rgba(73,56,49,0.3)";
+
+  context.fillRect(14, 554, 846, 32);
   
   context.font="15px Calibri";
   context.fillStyle = "rgb(250,250,250)";
@@ -558,15 +647,53 @@ function gameText () {
   context.fillStyle = "rgb(253,203,0)";
 
   context.font="40px Calibri";
-  context.fillText("Silly Gooses",20,50);
+  if(notGoose){
+    context.fillText("Silly Moose",20,40);
+    context.fillStyle = "rgb(239,218,171)";
+    context.font="12px Calibri";
+    context.fillText("and Goose.",138,58);
+  }else{
+    context.fillText("Silly Goose",20,40);
+    context.fillStyle = "rgb(239,218,171)";
+    context.font="12px Calibri";
+    context.fillText("and Moose.",138,58);
+  }
+  
 
   context.font="20px Calibri";
-  context.fillStyle = "rgb(239,218,171)";
-  context.fillText("Rescues Launch: " + gooseRescues ,250,45);
-  context.fillText("Success Rate: " + successRate + "%",650,45);
+
+      context.fillStyle = "rgb(239,218,171)";
+  context.fillText("Water Collected: " + waterSaved + "L",650,45);
   context.fillStyle = "rgb(239,218,0)";
-  context.fillText("Gooses Rescued: " + score ,450,45);
-  context.fillText("Lives Left: " + gooseLives ,850,45);
+  context.fillText("Dirt Collected: " + dirtSaved + "KG",450,45);
+  if(notGoose){
+    context.fillStyle = 'rgb(110,85,56)';
+    context.font="25px Calibri";
+    context.fillText("Earth",850,45);
+  }else{
+    context.fillStyle = 'rgb(0,126,128)';
+    context.font="25px Calibri";
+    context.fillText("Water",850,45);
+  }
+  
+
+  context.restore();
+}
+
+function drawWaterLevel () {
+  context.save();
+  if(waterlevel < 70 || waterlevel > 129){  
+    context.fillStyle = "rgba(103,6,9,0.6)";
+  }else{
+    context.fillStyle = 'rgba(0,126,128,0.7)';
+  }
+  context.translate(10, 554);
+  context.fillRect(4, 0, (waterlevel-50)*8.47, 32);
+
+  context.fillStyle = 'rgba(250,0,0,0.7)';
+  context.fillRect(172, 0, 4, 32);
+
+  context.fillRect(678, 0, 4, 32);
 
   context.restore();
 }
@@ -576,26 +703,38 @@ function render() {
         context.clearRect(0, 0, canvasWidth, canvasHeight);
         drawBackground();
         drawPond();
-        drawSillyGooses();
-        rescuedGeese();
-        drawFox();
-        drawDuck();
+        drawElement();
+        drawSilly();
+        drawWaterLevel();
         gameText();
         if(menu) {
             showHowToPlay();
         }
-        if(gooseLives === 0){
+        if(waterlevel <= 50 || waterlevel >= 150){
           gameover = true;
         }
-        if(gameover && !motherGHasBaby) {
+        if(gameover) {
           gameOver();
         }
-        if(rescues === 6 && !motherGHasBaby){
-          rescues = 0;
-          createSillyGooses();
+        if(!menu && waterlevel > 50 && waterlevel < 150){
+
+          if(notGoose){
+            waterlevel += (0.1 + (dirtSaved/70)) ;
+          }else{
+            waterlevel -= (0.1 + (waterSaved/70));
+          } 
         }
         //drawSegment();
     }
+}
+
+function gameReset () {
+  menu = false;
+  notGoose = false;
+  waterlevel = 100;
+  waterSaved = 0;
+  dirtSaved = 0;
+  gameover = false;
 }
 
 (function animloop() {
