@@ -1,4 +1,3 @@
-
 /*global window */
 window.requestAnimFrame = (function() {
     "use strict";
@@ -15,7 +14,6 @@ var canvas, context, canvasWidth, canvasHeight, canvasXCenter, canvasYCenter,
     menu = true,
     pulsate = 0,
     puddlePulsate = 0,
-    gooseLives = 3,
     gooseMove = 0,
     goosePosition = [],
     SillyGooseMaxPosition = [450, 450, 450, 350, 350, 270, 270, 270, 270, 270, 270, 270, 450, 450, 450, 450, 450, 450, 270, 270, 210, 210, 210, 210, 210, 210, 210, 350, 450, 450],
@@ -24,10 +22,6 @@ var canvas, context, canvasWidth, canvasHeight, canvasXCenter, canvasYCenter,
     gooseRescues = 0,
     gooseRescuesMove = 0,
     waterSaved = 0,
-    foxMove = 0,
-    foxPosition = [],
-    breadCrumbsArr = [],
-    lastPosArr = [100, 100],
     grassArr = [],
     elementArr = [],
     segements = [],
@@ -40,37 +34,45 @@ var canvas, context, canvasWidth, canvasHeight, canvasXCenter, canvasYCenter,
     score= 0,
     dirtSaved = 0,
     level = 1,
-    waterlevel = 100;
+    waterlevel = 129,
+    alert = false;
 
 function doKeyDown(e) {
     switch (e.keyCode) {
     //Left Arrow
     case 37:
-        if (!gameover) {
+        if (!gameover && !menu) {
           left = true;
         }
         break;
     //right arrow
     case 39:
-        if (!gameover) {
+        if (!gameover && !menu) {
             right = true;
         }
         break;
     //space bar
     case 32:
-        if (!menu && duckOut <= 80) {
+        if (!menu && !gameover) {
+          if(duckOut <= 80){
             gooseRescues += 1;
             spaceDown = true;
+          }
+        }
+        if(menu){
+          menu = !menu;
         }
         break;
     // P
     case 80:
+          menu = !menu;
+        break;
+    // enter
+    case 13:
+          
         if(gameover){
           gameReset();
-        }else{
-          menu = !menu;
         }
-        
         break;
     default:
         break;
@@ -241,10 +243,16 @@ function drawElement () {
         }
 
       if(i == elementArr.length-1){
-        if(!notGoose){
+
+          alert = false;
+        if(!notGoose && waterlevel < 70){
+          notification("Switch to a moose!");
+          alert = true;
           dirt(x, y, r, elementLevel, puddlePulsate);
-        }else{
+        }else if(notGoose && waterlevel > 130){
+          notification("Switch to a moose!");
           puddle(x, y, r, elementLevel, puddlePulsate);
+          alert = true;
         }
       }else{
         if(notGoose){
@@ -265,7 +273,7 @@ function puddle (x, y, r, elementLevel, puddlePulsate) {
   context.fillStyle = 'rgba(0,126,128,0.5)';
   context.fill();
   context.beginPath();
-  context.arc(x, y, (elementLevel + 3) + puddlePulsate, 0, 2 * Math.PI, false);
+  context.arc(x, y, (elementLevel + 3), 0, 2 * Math.PI, false);
   context.fillStyle = 'rgba(0,126,128,0.5)';
   context.fill();
   context.restore();
@@ -512,7 +520,7 @@ function showHowToPlay () {
   context.fillText("Use left and right arrows to move.",canvasXCenter,420);
   context.fillText("HOLD spacebar until you hit the element to collect it.",canvasXCenter,450);
   context.fillStyle = "rgb(239,70,70)";
-  context.fillText("Press 'P' to start!",canvasXCenter,480);
+  context.fillText("Press spacebar to start!",canvasXCenter,480);
 
   context.restore();
 }
@@ -543,38 +551,9 @@ function gameOver () {
   }else{
   context.fillText("... but sadly a moose lost its home :(",canvasXCenter,300);
   }
-  context.fillText("Press 'P' to play again.",canvasXCenter,450);
+  context.fillText("Press ENTER to play again.",canvasXCenter,450);
 
   context.restore();
-}
-
-function rescuedGeese () {
-  
-
-    for (var i = 0; i < rescues; i++) {
-      var cx = (Math.sin( gooseRescuesMove + i )) + canvasXCenter,
-        cy = (Math.cos( gooseRescuesMove + i ))+ canvasHeight / 2,
-        x = 45,
-        y = i*3,
-        r = -(gooseRescuesMove + i),
-        w = 20,
-        h = 15;
-
-      context.save();
-      context.translate(cx, cy);
-      context.rotate(r);
-      context.fillStyle = "rgba(252,238,33,0.8)";
-      context.beginPath();
-      context.fillRect(x,y, w, h);
-      context.fillRect(x+3,y-5, w-6, h+10);
-      context.fillRect(x+6,y-12, w-12, h);
-      context.fillStyle = "rgb(252,128,33)";
-      context.fillRect(x+8,y-16, w-16, h-6);
-      context.closePath();
-      context.fill();
-      context.restore();
-    };
-    
 }
 
 function checkGooseHit () {
@@ -584,7 +563,7 @@ function checkGooseHit () {
     for (var i = 0; i < elementArr.length; i++) {
       if(goosePosition[0] == elementArr[i][1]){
         if (goosePosition[1] == elementArr[i][0]) {
-          if(i == 5){
+          if((i == 5 && waterlevel < 70 && !notGoose) || (i == 5 && waterlevel > 130 && notGoose)){
             notGoose = !notGoose;
           }
           increaseWaterlevel(elementArr[i][2]/10);
@@ -622,7 +601,7 @@ function gameText () {
   context.fillRect(0, 70, 10, 520);
   context.fillRect(990, 70, 10, 520);
   context.fillRect(0, 590, 1000, 10);
-  if(waterlevel < 70 || waterlevel > 130 && !gameover){  
+  if(alert){  
     context.fillStyle = "rgba(203,0,0,0.8)";
   }else{
     context.fillStyle = "rgba(73,56,49,0.5)";
@@ -724,20 +703,48 @@ function render() {
             waterlevel -= (0.1 + (waterSaved/70));
           } 
         }
+        
+
         //drawSegment();
     }
 }
 
+function notification (text) {
+  context.font="40px Calibri";
+  context.fillStyle = "rgb(250,250,0)";
+  context.fillText(text,300,582);
+}
 function gameReset () {
   menu = false;
   notGoose = false;
-  waterlevel = 100;
+  waterlevel = 129;
   waterSaved = 0;
   dirtSaved = 0;
   gameover = false;
+}   
+
+var now,
+    dt   = 0,
+    last = timestamp(),
+    step = 1/60;
+function timestamp() {
+  return window.performance && window.performance.now ? window.performance.now() : new Date().getTime();
 }
 
-(function animloop() {
-  requestAnimFrame(animloop);
-    render();
-}());      
+function update (step) {
+console.log(step)
+}
+
+function frame() {
+  now = timestamp();
+  dt = dt + Math.min(1, (now - last) / 1000);
+  while(dt > step) {
+    dt = dt - step;
+    update(step);
+  }
+  render(dt);
+  last = now;
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
