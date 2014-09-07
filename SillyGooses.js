@@ -699,7 +699,7 @@ function timestamp() {
     return window.performance && window.performance.now ? window.performance.now() : new Date().getTime();
 }
 
-var now, dt   = 0, last = timestamp(), step = 1 / 25;
+var now, dt = 0, last = timestamp(), step = 1 / 25;
 
 function update() {
     "use strict";
