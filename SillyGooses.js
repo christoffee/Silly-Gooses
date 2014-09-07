@@ -218,11 +218,30 @@ function drawSegment() {
     }
 }
 
-function notification(text) {
+function notification(x, y, r, elementLevel) {
     "use strict";
-    context.font = "40px Calibri";
-    context.fillStyle = "rgb(250,250,0)";
-    context.fillText(text, 300, 582);
+    context.save();
+    context.translate(canvasXCenter, canvasYCenter);
+    context.rotate(r);
+    context.beginPath();
+    context.arc(x, y, elementLevel+10, 0, 2 * Math.PI, false);
+    context.fillStyle = "rgba(203,0,0,0.7)";
+    context.fill();
+    context.beginPath();
+    context.arc(x, y, (elementLevel + 13), 0, 2 * Math.PI, false);
+    context.fillStyle = "rgba(203,0,0,0.7)";
+    context.fill();
+    context.restore();
+
+    context.save();
+    context.translate(canvasXCenter, canvasYCenter);
+    context.rotate(r);
+    context.font = elementLevel + "px Calibri";
+    context.fillStyle = "rgba(203,200,200,0.7)";
+    context.textAlign="center";
+    context.textBaseline = 'middle';
+    context.fillText("Switch!", x, y);
+    context.restore();
 }
 
 function puddle(x, y, r, elementLevel) {
@@ -275,12 +294,10 @@ function drawElement() {
         if (i === elementArr.length - 1) {
             alert = false;
             if (!notGoose && waterlevel < 80) {
-                notification("Switch to a moose!");
+                notification(x, y, r, elementLevel);
                 alert = true;
-                dirt(x, y, r, elementLevel);
             } else if (notGoose && waterlevel > 120) {
-                notification("Switch to a moose!");
-                puddle(x, y, r, elementLevel);
+                notification(x, y, r, elementLevel);
                 alert = true;
             }
         } else {
@@ -495,9 +512,10 @@ function showHowToPlay() {
     context.fillText("Silly Moose and Goose dont know they're causing each other trouble.", canvasXCenter, 180);
     context.fillText("Silly Moose want to get rid of the pond so he can eat more grass!", canvasXCenter, 210);
     context.fillText("But Silly Goose want a bigger pond!", canvasXCenter, 240);
+    context.fillText("For the goose the pond is draining, for the moose it is overflowing.", canvasXCenter, 270);
     context.fillText("When you are Silly Goose, collect water for points.", canvasXCenter, 300);
     context.fillText("When you are Silly Moose, collect earth for points.", canvasXCenter, 330);
-    context.fillText("Change to goose/moose by collecting the other element.", canvasXCenter, 360);
+    context.fillText("Change to goose/moose by collecting the red 'Switch!' element.", canvasXCenter, 360);
     context.fillText("Use left and right arrows to move.", canvasXCenter, 420);
     context.fillText("HOLD spacebar until you hit the element to collect it.", canvasXCenter, 450);
     context.fillStyle = "rgb(239,70,70)";
